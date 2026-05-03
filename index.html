@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blob Simulation | Auto-Agar</title>
+    <meta name="description" content="A premium automated blob simulation with upgrades and stunning visual effects.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="src/css/main.css">
+</head>
+<body>
+    <canvas id="bgCanvas"></canvas>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="stat-panel glass">
+                <span class="label">BLOBS EATEN</span>
+                <span id="blobs-eaten-count" class="value">0</span>
+            </div>
+
+            <div class="stat-panel glass">
+                <span class="label">BLOBS LIVE</span>
+                <span id="blobs-live-count" class="value">0</span>
+            </div>
+
+            <div class="stat-panel glass">
+                <span class="label">SEASON TIME</span>
+                <span id="season-time-value" class="value">0h 00m 00s</span>
+            </div>
+        </div>
+
+        <div class="speed-panel glass">
+            <div class="speed-copy">
+                <span class="speed-label">GAME SPEED</span>
+                <span id="speed-value" class="speed-value">1.0x</span>
+            </div>
+            <div class="speed-options" role="group" aria-label="Game speed">
+                <button class="speed-btn" data-speed="0.5">0.5x</button>
+                <button class="speed-btn active" data-speed="1">1x</button>
+                <button class="speed-btn" data-speed="1.5">1.5x</button>
+                <button class="speed-btn" data-speed="2">2x</button>
+            </div>
+        </div>
+
+        <div id="control-panel-toggle-wrap">
+            <button id="control-panel-toggle" class="control-panel-toggle glass" type="button" aria-expanded="false">
+                CONTROL PANEL
+            </button>
+        </div>
+
+        <div id="control-panel" class="glass">
+            <div class="control-panel-head">
+                <div>
+                    <h3 class="control-panel-title">CONTROL PANEL</h3>
+                    <p class="control-panel-subtitle">Clean names, repair blobs, and reset safely.</p>
+                </div>
+            </div>
+
+            <div class="control-tabs" role="tablist" aria-label="Control panel tabs">
+                <button class="control-tab-btn active" data-control-tab="names" type="button">Names</button>
+                <button class="control-tab-btn" data-control-tab="bounds" type="button">Bounds</button>
+                <button class="control-tab-btn" data-control-tab="reset" type="button">Reset</button>
+            </div>
+
+            <div class="control-tab-panel active" data-control-tab-panel="names">
+                <div class="control-copy">Scan the live blobs for repeated names and replace only the duplicates.</div>
+                <div class="control-metric">
+                    <span>Duplicates</span>
+                    <strong id="duplicate-name-count">0</strong>
+                </div>
+                <button id="fix-duplicate-names-btn" class="control-action-btn" type="button">FIX DUPLICATE NAMES</button>
+            </div>
+
+            <div class="control-tab-panel" data-control-tab-panel="bounds">
+                <div class="control-copy">Check for blobs that wandered off the map and place them back inside the arena. If the blob count is over the limit, the newest extras are removed first so the older blobs stay.</div>
+                <div class="control-metric">
+                    <span>Out of bounds</span>
+                    <strong id="out-of-bounds-count">0</strong>
+                </div>
+                <button id="repair-bounds-btn" class="control-action-btn" type="button">REPAIR MAP POSITIONS</button>
+                <div class="control-metric">
+                    <span>Over limit</span>
+                    <strong id="over-limit-count">0</strong>
+                </div>
+                <button id="trim-over-limit-btn" class="control-action-btn" type="button">REMOVE OVER LIMIT BLOBS</button>
+            </div>
+
+            <div class="control-tab-panel" data-control-tab-panel="reset">
+                <div class="control-copy">Reset every blob size and restart the season timer.</div>
+                <button id="control-reset-size-btn" class="control-action-btn" type="button">RESET BLOB SIZE</button>
+            </div>
+
+            <div class="control-status" id="control-status-text">Ready.</div>
+        </div>
+
+        <button id="settings-toggle" class="settings-toggle glass" type="button" aria-expanded="false">
+            SETTINGS
+        </button>
+
+        <div id="settings-panel" class="glass">
+            <div class="settings-head">
+                <div>
+                    <h3 class="settings-title">SETTINGS</h3>
+                    <p class="settings-subtitle">Tune map colors, blob visuals, and useful simulation options.</p>
+                </div>
+                <button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="Close settings panel">×</button>
+            </div>
+
+            <div class="settings-tabs" role="tablist" aria-label="Settings tabs">
+                <button class="settings-tab-btn active" data-settings-tab="themes" type="button">Themes</button>
+                <button class="settings-tab-btn" data-settings-tab="map" type="button">Map</button>
+                <button class="settings-tab-btn" data-settings-tab="ui" type="button">UI</button>
+                <button class="settings-tab-btn" data-settings-tab="blobs" type="button">Blobs</button>
+                <button class="settings-tab-btn" data-settings-tab="play" type="button">Play</button>
+                <button class="settings-tab-btn" data-settings-tab="visuals" type="button">Visuals</button>
+                <button class="settings-tab-btn" data-settings-tab="utility" type="button">Utility</button>
+            </div>
+
+            <div class="settings-tab-panel active" data-settings-tab-panel="themes">
+                <div class="settings-copy">Pick one of the three map themes. Each one changes the arena colors and ambient glow.</div>
+                <div class="theme-grid">
+                    <button class="theme-btn" data-theme-id="midnight" data-theme-name="Midnight Bloom" type="button" style="--theme-swatch-1:#120b1e;--theme-swatch-2:#ff7ab0;--theme-swatch-3:#70d8ff;">
+                        <span class="theme-label">Midnight Bloom</span>
+                        <span class="theme-swatches" aria-hidden="true">
+                            <span></span><span></span><span></span>
+                        </span>
+                    </button>
+                    <button class="theme-btn" data-theme-id="ocean" data-theme-name="Ocean Candy" type="button" style="--theme-swatch-1:#071622;--theme-swatch-2:#46d1ff;--theme-swatch-3:#7fffd4;">
+                        <span class="theme-label">Ocean Candy</span>
+                        <span class="theme-swatches" aria-hidden="true">
+                            <span></span><span></span><span></span>
+                        </span>
+                    </button>
+                    <button class="theme-btn" data-theme-id="sunset" data-theme-name="Sunset Pop" type="button" style="--theme-swatch-1:#241008;--theme-swatch-2:#ff9f5a;--theme-swatch-3:#ff6e9a;">
+                        <span class="theme-label">Sunset Pop</span>
+                        <span class="theme-swatches" aria-hidden="true">
+                            <span></span><span></span><span></span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-tab-panel" data-settings-tab-panel="map">
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Arena scale</strong>
+                        <em>Make the map larger so blobs take longer to reach the reset limit.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>1.00x</span>
+                        <input class="setting-control" data-setting-key="mapScale" data-setting-type="range" type="range" min="0.75" max="4" step="0.05" value="1">
+                    </div>
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Food density</strong>
+                        <em>Spawn more or less food across the map.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>1.00x</span>
+                        <input class="setting-control" data-setting-key="foodDensity" data-setting-type="range" type="range" min="0.5" max="3" step="0.05" value="1">
+                    </div>
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Blob count</strong>
+                        <em>Choose how many blobs can live on the map at once.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>35</span>
+                        <input class="setting-control" data-setting-key="blobCount" data-setting-type="range" type="range" min="5" max="120" step="1" value="35">
+                    </div>
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Reset mass limit</strong>
+                        <em>Change how big a blob must get before the season resets.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>25000</span>
+                        <input class="setting-control" data-setting-key="resetMassLimit" data-setting-type="range" type="range" min="5000" max="100000" step="500" value="25000">
+                    </div>
+                </label>
+            </div>
+
+            <div class="settings-tab-panel" data-settings-tab-panel="ui">
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Enable upgrades</strong>
+                        <em>Show or hide the upgrade strip at the bottom.</em>
+                    </span>
+                    <input class="setting-control" data-setting-key="enableUpgrades" data-setting-type="boolean" type="checkbox">
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Hide all UI</strong>
+                        <em>Hide every HUD element, button, and panel. Click anywhere on the screen to reopen Settings.</em>
+                    </span>
+                    <input class="setting-control" data-setting-key="hideAllUI" data-setting-type="boolean" type="checkbox">
+                </label>
+                <div class="settings-status">When all UI is hidden, the settings button disappears too. Use the screen click to bring it back.</div>
+            </div>
+
+            <div class="settings-tab-panel" data-settings-tab-panel="blobs">
+                <div class="settings-copy">Choose which skin pool the blobs should use.</div>
+                <div class="gender-grid">
+                    <button class="gender-btn active" data-blob-gender="girls" type="button">Girls</button>
+                    <button class="gender-btn" data-blob-gender="boys" type="button">Boys</button>
+                    <button class="gender-btn" data-blob-gender="both" type="button">Both</button>
+                </div>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Show names</strong>
+                        <em>Render the blob name inside the blob.</em>
+                    </span>
+                    <input class="setting-control" data-setting-key="showNames" data-setting-type="boolean" type="checkbox">
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Show mass</strong>
+                        <em>Display the blob mass below the name.</em>
+                    </span>
+                    <input class="setting-control" data-setting-key="showMass" data-setting-type="boolean" type="checkbox">
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Skin opacity</strong>
+                        <em>Blend the skin art more or less strongly into the blob.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>0.96</span>
+                        <input class="setting-control" data-setting-key="skinOpacity" data-setting-type="range" type="range" min="0.5" max="1" step="0.01" value="0.96">
+                    </div>
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Blob glow</strong>
+                        <em>Increase or reduce the soft outer glow.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>1.00</span>
+                        <input class="setting-control" data-setting-key="blobGlow" data-setting-type="range" type="range" min="0.2" max="2" step="0.05" value="1">
+                    </div>
+                </label>
+            </div>
+
+            <div class="settings-tab-panel" data-settings-tab-panel="play">
+                <div class="settings-copy">Take direct control of one blob and play the match yourself. Move with WASD or drag on open space, and press Space to split.</div>
+                <div class="play-mode-status-row">
+                    <span class="setting-copy">
+                        <strong>Controlled blob</strong>
+                        <em id="blob-play-status-copy">No blob selected yet.</em>
+                    </span>
+                    <strong id="blob-play-name">None</strong>
+                </div>
+                <button id="blob-play-toggle-btn" class="settings-action-btn" type="button">ENTER BLOB MODE</button>
+                <div class="settings-status" id="blob-play-status">Turn this on to follow and control a live blob.</div>
+            </div>
+
+            <div class="settings-tab-panel" data-settings-tab-panel="visuals">
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Background motion</strong>
+                        <em>Slow down or speed up the floating backdrop.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>1.00</span>
+                        <input class="setting-control" data-setting-key="backgroundMotion" data-setting-type="range" type="range" min="0" max="2" step="0.05" value="1">
+                    </div>
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Outline strength</strong>
+                        <em>Make blob edges softer or sharper.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>1.00</span>
+                        <input class="setting-control" data-setting-key="outlineStrength" data-setting-type="range" type="range" min="0" max="2" step="0.05" value="1">
+                    </div>
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>UI opacity</strong>
+                        <em>Adjust how see-through the HUD panels are.</em>
+                    </span>
+                    <div class="setting-control-stack">
+                        <span class="setting-value" data-setting-value>0.16</span>
+                        <input class="setting-control" data-setting-key="uiOpacity" data-setting-type="range" type="range" min="0.05" max="0.35" step="0.01" value="0.16">
+                    </div>
+                </label>
+            </div>
+
+            <div class="settings-tab-panel" data-settings-tab-panel="utility">
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Show leaderboard</strong>
+                        <em>Hide the leaderboard if you want more playfield space.</em>
+                    </span>
+                    <input class="setting-control" data-setting-key="showLeaderboard" data-setting-type="boolean" type="checkbox">
+                </label>
+                <label class="setting-row">
+                    <span class="setting-copy">
+                        <strong>Show event feed</strong>
+                        <em>Hide the live feed panel if you do not need it.</em>
+                    </span>
+                    <input class="setting-control" data-setting-key="showEventFeed" data-setting-type="boolean" type="checkbox">
+                </label>
+                <button id="settings-reset-btn" class="settings-action-btn" type="button">RESET ALL SETTINGS</button>
+                <div class="settings-status" id="settings-status-text">Ready.</div>
+            </div>
+        </div>
+
+        <div id="right-hud-stack">
+            <div id="leaderboard-container" class="glass">
+                <h3 class="log-title">LEADERBOARD</h3>
+                <div id="leaderboard-list"></div>
+            </div>
+
+            <div id="log-container" class="glass">
+                <h3 class="log-title">EVENT FEED</h3>
+                <div id="log-list"></div>
+            </div>
+        </div>
+
+        <div class="upgrade-panel glass">
+            <h2 class="panel-title">SIMULATION UPGRADES</h2>
+            
+            <div class="upgrade-item" id="upgrade-multi">
+                <div class="upgrade-info">
+                    <span class="upgrade-name">Mass Multiplier</span>
+                    <span class="upgrade-desc">Blobs gain more mass from eating.</span>
+                </div>
+                <button class="upgrade-btn" data-type="multi">
+                    <span class="cost-label">Cost:</span>
+                    <span class="cost-value">50</span>
+                </button>
+            </div>
+
+            <div class="upgrade-item" id="upgrade-speed">
+                <div class="upgrade-info">
+                    <span class="upgrade-name">Neural Velocity</span>
+                    <span class="upgrade-desc">Increases base movement speed.</span>
+                </div>
+                <button class="upgrade-btn" data-type="speed">
+                    <span class="cost-label">Cost:</span>
+                    <span class="cost-value">100</span>
+                </button>
+            </div>
+
+            <div class="upgrade-item" id="upgrade-spawn">
+                <div class="upgrade-info">
+                    <span class="upgrade-name">Food Density</span>
+                    <span class="upgrade-desc">Spawn more food particles.</span>
+                </div>
+                <button class="upgrade-btn" data-type="food">
+                    <span class="cost-label">Cost:</span>
+                    <span class="cost-value">150</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ui-restore-hint" class="ui-restore-hint">Click anywhere on the screen to reopen Settings.</div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
